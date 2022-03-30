@@ -1,5 +1,7 @@
 # lupine
 
+Functions to read in and analyze lupine data files. This is still a new and immature body of code and bugs should be expected.
+
 ### Examples:
 Before running anything below, you need to read in the functions. The easiest way to do this is by reading from the github site directly:
 ```source('https://raw.githubusercontent.com/ajakef/lupine/main/read_lupine.R')```
