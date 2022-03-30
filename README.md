@@ -1,12 +1,10 @@
 # lupine
 
 ### Examples:
-Before running anything, first read in these functions using
-```source('read_lupine.R')```
+Before running anything below, you need to read in the functions. The easiest way to do this is by reading from the github site directly:
+```source('https://raw.githubusercontent.com/ajakef/lupine/main/read_lupine.R')```
 
-For this to work, you must be running R from the same folder that `read_lupine.R` is saved in. Or, you can add the path to `read_lupine.R` before the filename, separated by forward slashes `/`.
-
-You can find the folder you're running R from using `getwd()` and change it using `setwd('new_folder_name')`.
+If you want to download the code file and work with it locally instead, you can do that too.
 
 ##### Look at stats for a set of files
 If you want to look at all files in folder `data`, first define `filenames` as

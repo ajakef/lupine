@@ -1,4 +1,4 @@
-## R naming conventions are in a sorry state: https://journal.r-project.org/archive/2012-2/RJournal_2012-2_Baaaath.pdf. I'm just going to follow Python convention. Non-user "helper" functions begin with "_".
+## R naming conventions are in a sorry state: https://journal.r-project.org/archive/2012-2/RJournal_2012-2_Baaaath.pdf. I'm just going to follow Python convention. 
 
 lupine_read_single = function(filename){
   ## Read a single Lupine data file, including time interpolation.
@@ -6,44 +6,10 @@ lupine_read_single = function(filename){
   ## returns a data frame
   nn = numeric()
   data = scan(filename, what = list(uC_sec = nn, acc_x = nn, acc_y = nn, acc_z = nn, gyr_x = nn, gyr_y = nn, gyr_z = nn, temp_degC = nn, batt_voltage = nn, lat = nn, lon = nn, year = nn, month = nn, date = nn, hour = nn, min = nn, sec = nn, HDOP = nn, satellites = nn, fix_uC_sec = nn), skip = 3, sep = ',', flush = TRUE)
-  data = _interpolate_time(data)
+  data = interpolate_time(data)
   return(as.data.frame(data))
 }
 
-_t_fmt = function(x, fmt){
-  ## extract year, hour, etc. from a POSIXct and return it as a number in UTC
-  return(as.numeric(strftime(x, fmt, tz = 'GMT')))
-}
-
-_interpolate_time = function(data){
-  ## use a linear fit to estimate time during non-GPS samples
-  ## there might be time zone headaches with this
-
-  ## identify valid gps lines
-  w = _find_valid_gps_lines(data)
-  ## verify that there are at least 2 GPS times
-  if(sum(w) < 2){
-    stop('Need at least 2 GPS times to interpolate')
-  }
-  data$datetime = as.POSIXct(NA)
-  data$datetime[w] = as.POSIXct(paste(data$year, format = data$month, data$date, data$hour, data$min, data$sec)[w], format = '%Y %m %d %H %M %S', tz = 'GMT')
-
-  datetime_num = as.numeric(data$datetime)
-  
-  reg_line = lm(datetime_num[w] ~ data$uC_sec[w])$coefficients
-
-  datetime_num[!w] = reg_line[1] + reg_line[2] * data$uC_sec[!w]
-
-  data$datetime[!w] = as.POSIXct('1970-01-01', tz = 'GMT') + datetime_num[!w]
-
-  data$year[!w] = _t_fmt(data$datetime[!w], '%Y')
-  data$month[!w] = _t_fmt(data$datetime[!w], '%m')
-  data$date[!w] = _t_fmt(data$datetime[!w], '%d')
-  data$hour[!w] = _t_fmt(data$datetime[!w], '%H')
-  data$min[!w] = _t_fmt(data$datetime[!w], '%M')
-  data$sec[!w] = _t_fmt(data$datetime[!w], '%S')
-  return(data)
-}
 
 lupine_plot_health = function(data){
   par(mfrow = c(2,1), mar = c(3,3,3,1), mgp = c(1.75, 0.5, 0))
@@ -82,7 +48,11 @@ lupine_file_stats = function(filenames){
   return(output)
 }
 
-_find_valid_gps_lines = function(data){
+################################################
+################################################
+## helper functions below
+
+find_valid_gps_lines = function(data){
   ## helper function to identify valid gps lines before interpolating non-gps line times
   return( !is.na(data$year) &
           !is.na(data$month) &
@@ -112,4 +82,40 @@ _find_valid_gps_lines = function(data){
 	  data$lon <= 180 &
 	  data$satellites >= 3
 	  )
+}
+
+
+t_fmt = function(x, fmt){
+  ## extract year, hour, etc. from a POSIXct and return it as a number in UTC
+  return(as.numeric(strftime(x, fmt, tz = 'GMT')))
+}
+
+interpolate_time = function(data){
+  ## use a linear fit to estimate time during non-GPS samples
+  ## there might be time zone headaches with this
+
+  ## identify valid gps lines
+  w = find_valid_gps_lines(data)
+  ## verify that there are at least 2 GPS times
+  if(sum(w) < 2){
+    stop('Need at least 2 GPS times to interpolate')
+  }
+  data$datetime = as.POSIXct(NA)
+  data$datetime[w] = as.POSIXct(paste(data$year, format = data$month, data$date, data$hour, data$min, data$sec)[w], format = '%Y %m %d %H %M %S', tz = 'GMT')
+
+  datetime_num = as.numeric(data$datetime)
+  
+  reg_line = lm(datetime_num[w] ~ data$uC_sec[w])$coefficients
+
+  datetime_num[!w] = reg_line[1] + reg_line[2] * data$uC_sec[!w]
+
+  data$datetime[!w] = as.POSIXct('1970-01-01', tz = 'GMT') + datetime_num[!w]
+
+  data$year[!w] = t_fmt(data$datetime[!w], '%Y')
+  data$month[!w] = t_fmt(data$datetime[!w], '%m')
+  data$date[!w] = t_fmt(data$datetime[!w], '%d')
+  data$hour[!w] = t_fmt(data$datetime[!w], '%H')
+  data$min[!w] = t_fmt(data$datetime[!w], '%M')
+  data$sec[!w] = t_fmt(data$datetime[!w], '%S')
+  return(data)
 }
