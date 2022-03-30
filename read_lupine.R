@@ -53,7 +53,7 @@ lupine_plot_health = function(data){
   axis.POSIXct(1, data$datetime, format = '%H:%M:%S')
 }
 
-lupine_plot_interval = function(data){
+lupine_plot_intervals = function(data){
   plot(data$datetime[-1], diff(data$datetime))
 }
 
@@ -113,14 +113,3 @@ _find_valid_gps_lines = function(data){
 	  data$satellites >= 3
 	  )
 }
-##### 007
-## no GPS in file 0, just at the very end of 1
-## continuous between files 2 and 3
-## uC restarted
-
-
-
-####
-# bugs:
-## number of trailing commas is wrong in non-GPS lines, resulting in warning
-## GPS should probably communicate at 57600 to run faster
