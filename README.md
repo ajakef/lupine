@@ -19,7 +19,9 @@ If you only want to look at files in folder `data` that end in `003`, instead de
 filenames = list.files('data', pattern = '003$', full.names = TRUE)
 ```
 
-Then, run `lupine_file_stats(filenames)` to see some basic statistics about the files.
+Then, run 
+```lupine_file_stats(filenames)``` 
+to see some basic statistics about the files. Columns are start time/end time (UTC), minimum and maximum battery voltage, 1st and 99th percentile sample time intervals, length (in samples), and file name.
 
 ##### Read single file as a data frame
 Read single file `FILE0001.003` in folder `data/`
