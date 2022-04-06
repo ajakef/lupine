@@ -5,7 +5,7 @@ lupine_read_single = function(filename){
   ## filename: file name to read, including path
   ## returns a data frame
   nn = numeric()
-  data = scan(filename, what = list(uC_sec = nn, acc_x = nn, acc_y = nn, acc_z = nn, gyr_x = nn, gyr_y = nn, gyr_z = nn, temp_degC = nn, batt_voltage = nn, lat = nn, lon = nn, year = nn, month = nn, date = nn, hour = nn, min = nn, sec = nn, HDOP = nn, satellites = nn, fix_uC_sec = nn), skip = 3, sep = ',', flush = TRUE)
+  data = scan(filename, what = list(uC_sec = nn, acc_x = nn, acc_y = nn, acc_z = nn, gyr_x = nn, gyr_y = nn, gyr_z = nn, temp_degC = nn, batt_voltage = nn, lat = nn, lon = nn, year = nn, month = nn, date = nn, hour = nn, min = nn, sec = nn, HDOP = nn, satellites = nn, fix_uC_sec = nn), skip = 3, sep = ',', flush = TRUE, fill = TRUE)
   data = interpolate_time(data)
   return(as.data.frame(data))
 }
