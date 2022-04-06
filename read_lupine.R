@@ -32,7 +32,7 @@ lupine_file_stats = function(filenames){
   output = as.data.frame(output)
   for(i in 1:length(filenames)){
     print(filenames[i])
-    data = try(read_single_lupine(filenames[i]))
+    data = try(lupine_read_single(filenames[i]))
     if(class(data) == 'try-error'){
       next
     }
