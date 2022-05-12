@@ -1,11 +1,19 @@
 ## R naming conventions are in a sorry state: https://journal.r-project.org/archive/2012-2/RJournal_2012-2_Baaaath.pdf. I'm just going to follow Python convention. 
 
+library(pracma)
+
 lupine_read_single = function(filename){
   ## Read a single Lupine data file, including time interpolation.
   ## filename: file name to read, including path
   ## returns a data frame
   nn = numeric()
-  data = scan(filename, what = list(uC_sec = nn, acc_x = nn, acc_y = nn, acc_z = nn, gyr_x = nn, gyr_y = nn, gyr_z = nn, temp_degC = nn, batt_voltage = nn, lat = nn, lon = nn, year = nn, month = nn, date = nn, hour = nn, min = nn, sec = nn, HDOP = nn, satellites = nn, fix_uC_sec = nn), skip = 3, sep = ',', flush = TRUE, fill = TRUE)
+  format = scan(filename, n=2, what = character())[2]
+  if(format == '0.2'){
+    skip = 3
+  }else if(format == '0.4'){
+    skip = 4
+  }
+  data = scan(filename, what = list(uC_sec = nn, acc_x = nn, acc_y = nn, acc_z = nn, gyr_x = nn, gyr_y = nn, gyr_z = nn, temp_degC = nn, batt_voltage = nn, lat = nn, lon = nn, year = nn, month = nn, date = nn, hour = nn, min = nn, sec = nn, HDOP = nn, satellites = nn, fix_uC_sec = nn), skip = skip, sep = ',', flush = TRUE, fill = TRUE)
   data = interpolate_time(data)
   return(as.data.frame(data))
 }
@@ -95,27 +103,63 @@ interpolate_time = function(data){
   ## there might be time zone headaches with this
 
   ## identify valid gps lines
-  w = find_valid_gps_lines(data)
-  ## verify that there are at least 2 GPS times
-  if(sum(w) < 2){
-    stop('Need at least 2 GPS times to interpolate')
-  }
+  valid = find_valid_gps_lines(data)
+
   data$datetime = as.POSIXct(NA)
-  data$datetime[w] = as.POSIXct(paste(data$year, format = data$month, data$date, data$hour, data$min, data$sec)[w], format = '%Y %m %d %H %M %S', tz = 'GMT')
+  data$datetime[valid] = as.POSIXct(paste(data$year, format = data$month, data$date, data$hour, data$min, data$sec)[valid], format = '%Y %m %d %H %M %S', tz = 'GMT')
 
   datetime_num = as.numeric(data$datetime)
+
+  ## remove any outliers in x and outliers in y
+  nonoutlier_x = (data$uC_sec < (median(data$uC_sec[valid]) + 3*sd(data$uC_sec[valid]))) &
+                 (data$uC_sec > (median(data$uC_sec[valid]) - 3*sd(data$uC_sec[valid])))
+
+  nonoutlier_y = (datetime_num < (median(datetime_num[valid]) + 3*sd(datetime_num[valid]))) &
+	  	 (datetime_num > (median(datetime_num[valid]) - 3*sd(datetime_num[valid])))
+	  
+  ## verify that there are at least 2 GPS times
+  if(sum(valid & nonoutlier_x & nonoutlier_y) < 2){
+    stop('Need at least 2 GPS times to interpolate')
+  }
   
-  reg_line = lm(datetime_num[w] ~ data$uC_sec[w])$coefficients
+  #reg_line = lm(datetime_num[w] ~ data$uC_sec[w])$coefficients
+  x = data$uC_sec
+  w = valid & nonoutlier_x & nonoutlier_y
+  x = x - median(x[w])
+  reg_line = robust_regression(x[w], datetime_num[w])
 
-  datetime_num[!w] = reg_line[1] + reg_line[2] * data$uC_sec[!w]
+  #datetime_num[!w] = reg_line[1] + reg_line[2] * data$uC_sec[!w]
+  w = !valid & nonoutlier_x # can't process the x outliers
+  datetime_num[w] = 0
+  #for(i in 1:length(reg_line)){
+  #  datetime_num[w] = datetime_num[w] + reg_line[i] * poly(x[w], length(reg_line))[,i]
+  #}
+  #datetime_num[w] = predict(reg_line, data.frame(x[w]))
+  datetime_num[w] = polyval(reg_line, x[w])
+  
+  data$datetime[w] = as.POSIXct('1970-01-01', tz = 'GMT') + datetime_num[w]
 
-  data$datetime[!w] = as.POSIXct('1970-01-01', tz = 'GMT') + datetime_num[!w]
-
-  data$year[!w] = t_fmt(data$datetime[!w], '%Y')
-  data$month[!w] = t_fmt(data$datetime[!w], '%m')
-  data$date[!w] = t_fmt(data$datetime[!w], '%d')
-  data$hour[!w] = t_fmt(data$datetime[!w], '%H')
-  data$min[!w] = t_fmt(data$datetime[!w], '%M')
-  data$sec[!w] = t_fmt(data$datetime[!w], '%S')
+  data$year[w] = t_fmt(data$datetime[w], '%Y')
+  data$month[w] = t_fmt(data$datetime[w], '%m')
+  data$date[w] = t_fmt(data$datetime[w], '%d')
+  data$hour[w] = t_fmt(data$datetime[w], '%H')
+  data$min[w] = t_fmt(data$datetime[w], '%M')
+  data$sec[w] = t_fmt(data$datetime[w], '%S')
   return(data)
+}
+
+robust_regression = function(x, y, n = 5){
+  ## GPS times have occasional outliers but should have very small residuals otherwise.
+  ## If any residuals exceed 0.1 sec, remove the biggest outlier and recalculate with
+  ## the rest (recursion).
+  print(paste('robust_regression:', length(x)))
+  #  model = lm(y ~ poly(x,3))
+  model = polyfit(x, y, n)
+  residuals = y - polyval(model, x)
+  if(any(abs(residuals) > 10)){
+    print(c(max(abs(residuals)), length(x)))
+    biggest_outlier = which.max(abs(residuals))
+    model = robust_regression(x[-biggest_outlier], y[-biggest_outlier])
+  }
+  return(model)
 }
